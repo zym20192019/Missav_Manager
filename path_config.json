@@ -5,5 +5,12 @@
     "path": "/root/jable-downloader/downloads",
     "icon": "📁",
     "auto_move": false
+  },
+  {
+    "id": "path_1777799153362",
+    "name": "115网盘",
+    "path": "115网盘 /Movies/CloudDrive/115/youtube",
+    "icon": "📁",
+    "auto_move": true
   }
 ]

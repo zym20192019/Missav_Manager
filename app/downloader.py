@@ -104,12 +104,60 @@ def _unpack_js_eval(script_text: str) -> str:
 def parse_missav(url: str) -> dict:
     """Parse MissAV page to extract video info and M3U8 URL."""
     import cloudscraper
+
+    # Build proper headers for MissAV
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+        "Referer": "https://missav.live/",
+        "Origin": "https://missav.live",
+    }
+
+    # Try cloudscraper first
     scraper = cloudscraper.create_scraper(
         browser={"browser": "chrome", "platform": "windows", "mobile": False},
         delay=10,
     )
-    resp = scraper.get(url, timeout=30)
-    resp.raise_for_status()
+    scraper.headers.update(headers)
+
+    resp = None
+    for attempt in range(3):
+        try:
+            resp = scraper.get(url, timeout=30)
+            if resp.status_code == 200:
+                break
+            # If 403, try with different referer
+            if resp.status_code == 403:
+                scraper.headers["Referer"] = "https://www.google.com/"
+                resp = scraper.get(url, timeout=30)
+                if resp.status_code == 200:
+                    break
+        except Exception:
+            pass
+
+    # Fallback to plain requests with cookies
+    if not resp or resp.status_code != 200:
+        session = requests.Session()
+        session.headers.update(headers)
+        # Visit homepage first to get cookies
+        try:
+            home = session.get("https://missav.live/", timeout=15)
+            resp = session.get(url, timeout=30)
+        except Exception as e:
+            pass
+
+    if not resp or resp.status_code != 200:
+        raise ValueError(f"Cannot access MissAV page (HTTP {resp.status_code if resp else 'N/A'})")
+
     html = resp.text
 
     title_match = re.search(r'og:title"\s+content="([^"]+)"', html)
@@ -141,7 +189,8 @@ def parse_missav(url: str) -> dict:
     if not m3u8_url:
         raise ValueError("Cannot find M3U8 URL from MissAV page")
 
-    vid_match = re.search(r'/([^/]+)(?:/|$)', url.rstrip("/"))
+    # Extract video ID from URL (missav.live/dm18/cn/xxx or missav.ai/videos/xxx)
+    vid_match = re.search(r'(?:videos|cn|en)/([^/]+?)(?:/|$)', url.rstrip("/"))
     video_id = vid_match.group(1) if vid_match else "unknown"
 
     return {
@@ -149,7 +198,7 @@ def parse_missav(url: str) -> dict:
         "thumbnail": thumbnail,
         "m3u8_url": m3u8_url,
         "video_id": video_id,
-        "headers": {"Referer": "https://missav.ai/", "Origin": "https://missav.ai"},
+        "headers": {"Referer": "https://missav.live/", "Origin": "https://missav.live"},
     }
 
 
