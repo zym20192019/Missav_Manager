@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+downloads/
+task_history.json
+*.egg-info/
+.env

@@ -1,0 +1,14 @@
+[Unit]
+Description=Jable/MissAV M3U8 Downloader - Liquid Glass UI
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/jable-downloader
+ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8025
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
