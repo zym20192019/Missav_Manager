@@ -67,10 +67,29 @@
 
 ## 🚀 快速开始
 
-### 环境要求
-- Python 3.11+
+### 一键部署（推荐）
 
-### 安装
+```bash
+# 下载并运行部署脚本
+curl -fsSL https://raw.githubusercontent.com/zym20192019/Missav_Manager/main/deploy.sh | sudo bash
+
+# 或者手动下载执行
+wget https://raw.githubusercontent.com/zym20192019/Missav_Manager/main/deploy.sh
+chmod +x deploy.sh
+sudo bash deploy.sh
+```
+
+脚本会自动完成：
+- ✅ 克隆项目到 `/root/jable-downloader/`
+- ✅ 安装所有 Python 依赖
+- ✅ 配置 systemd 服务（开机自启）
+- ✅ 启动服务
+
+自定义端口：`sudo bash deploy.sh 3000`
+
+### 手动安装
+
+**环境要求：** Python 3.11+
 
 ```bash
 git clone https://github.com/zym20192019/Missav_Manager.git
@@ -83,17 +102,20 @@ pip3 install -r requirements.txt
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8025
 ```
 
-### systemd 服务（推荐）
-
-```bash
-sudo cp jable-downloader.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable jable-downloader
-sudo systemctl start jable-downloader
-```
-
 ### 访问
 打开浏览器访问 `http://<your-ip>:8025`，默认账号 `admin` / `jable2026`。
+
+### 常用命令
+
+```bash
+systemctl status jable-downloader    # 查看状态
+systemctl restart jable-downloader   # 重启服务
+systemctl stop jable-downloader      # 停止服务
+journalctl -u jable-downloader -f    # 实时日志
+
+# 更新版本
+cd /root/jable-downloader && git pull && systemctl restart jable-downloader
+```
 
 ---
 
