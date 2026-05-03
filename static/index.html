@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jable/MissAV Downloader</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-from:#1a0533;--bg-to:#0a1628;
+  --glass-bg:rgba(255,255,255,0.04);
+  --glass-border:rgba(255,255,255,0.08);
+  --glass-hover:rgba(255,255,255,0.08);
+  --primary:#6366f1;--accent:#a855f7;
+  --success:#22c55e;--error:#ef4444;--warning:#f59e0b;
+  --text:#e2e8f0;--text-dim:#94a3b8;--text-bright:#f8fafc;
+}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:linear-gradient(135deg,var(--bg-from),var(--bg-to));
+  color:var(--text);min-height:100vh;overflow-x:hidden;
+}
+.orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.15;pointer-events:none;z-index:0;animation:float 20s ease-in-out infinite}
+.orb-1{width:400px;height:400px;background:var(--primary);top:-100px;left:-100px}
+.orb-2{width:300px;height:300px;background:var(--accent);bottom:-50px;right:-50px;animation-delay:-10s}
+.orb-3{width:200px;height:200px;background:#ec4899;top:50%;left:50%;animation-delay:-5s}
+@keyframes float{0%,100%{transform:translate(0,0)}33%{transform:translate(30px,-30px)}66%{transform:translate(-20px,20px)}}
+.glass{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:16px}
+.container{max-width:900px;margin:0 auto;padding:20px;position:relative;z-index:1}
+h1{text-align:center;font-size:1.5rem;font-weight:700;margin-bottom:4px;
+  background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:var(--text-dim);font-size:0.85rem;margin-bottom:24px}
+/* Login */
+#loginPage{display:flex;justify-content:center;align-items:center;min-height:100vh}
+.login-card{padding:40px;width:360px}
+.login-card h2{text-align:center;margin-bottom:24px;font-size:1.3rem}
+.input{width:100%;padding:10px 14px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);font-size:0.9rem;outline:none;transition:border-color .3s}
+.input:focus{border-color:var(--primary)}
+.btn{padding:10px 20px;border:none;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:600;transition:all .3s;color:#fff}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--accent))}
+.btn-primary:hover{transform:scale(1.02);box-shadow:0 0 20px rgba(99,102,241,0.3)}
+.btn-danger{background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:var(--error)}
+.btn-sm{padding:6px 12px;font-size:0.8rem;border-radius:8px}
+.btn-full{width:100%}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;overflow-x:auto}
+.tab{padding:10px 18px;border-radius:10px;cursor:pointer;font-size:0.85rem;color:var(--text-dim);transition:all .3s;white-space:nowrap;border:1px solid transparent;background:transparent}
+.tab:hover{color:var(--text);background:var(--glass-hover)}
+.tab.active{color:var(--text-bright);background:var(--glass-bg);border-color:var(--glass-border)}
+/* Header bar */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.header-right{display:flex;gap:8px;align-items:center}
+.path-manager-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--glass-border);background:var(--glass-bg);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .3s}
+.path-manager-btn:hover{background:var(--glass-hover)}
+/* Input area */
+.input-area{margin-bottom:20px}
+.input-row{display:flex;gap:8px;margin-bottom:8px}
+.input-row .input{flex:1}
+.batch-area{margin-top:8px}
+.batch-area textarea{width:100%;height:80px;padding:10px;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);border-radius:10px;color:var(--text);font-size:0.85rem;resize:vertical;outline:none;font-family:inherit}
+.batch-area textarea:focus{border-color:var(--primary)}
+/* Task card */
+.task-card{padding:16px;margin-bottom:10px;transition:all .3s}
+.task-card:hover{background:var(--glass-hover)}
+.task-top{display:flex;gap:12px;align-items:flex-start}
+.task-thumb{width:120px;height:68px;border-radius:8px;object-fit:cover;background:rgba(0,0,0,0.3);flex-shrink:0}
+.task-info{flex:1;min-width:0}
+.task-title{font-weight:600;font-size:0.9rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:600}
+.badge-jable{background:rgba(239,68,68,0.15);color:#f87171}
+.badge-missav{background:rgba(168,85,247,0.15);color:#c084fc}
+.badge-status{background:rgba(99,102,241,0.15);color:var(--primary)}
+.badge-done{background:rgba(34,197,94,0.15);color:var(--success)}
+.badge-error{background:rgba(239,68,68,0.15);color:var(--error)}
+.badge-moved{background:rgba(34,197,94,0.15);color:var(--success)}
+.progress-bar{height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--primary),var(--accent));transition:width .5s ease;min-width:0}
+.progress-text{display:flex;justify-content:space-between;margin-top:4px;font-size:0.75rem;color:var(--text-dim)}
+.task-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+/* File card */
+.file-card{padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.file-icon{font-size:28px}
+.file-info{flex:1;min-width:0}
+.file-name{font-weight:600;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-meta{font-size:0.75rem;color:var(--text-dim)}
+.file-actions{display:flex;gap:6px;flex-wrap:wrap}
+/* Search */
+.search-bar{display:flex;gap:8px;margin-bottom:16px}
+.search-bar .input{flex:1}
+/* Path modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;display:flex;justify-content:center;align-items:center;opacity:0;visibility:hidden;transition:all .3s}
+.modal-overlay.active{opacity:1;visibility:visible}
+.modal-content{width:500px;max-width:95vw;max-height:85vh;overflow-y:auto;padding:24px}
+.modal-content h3{margin-bottom:16px;font-size:1.1rem}
+.path-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,0,0,0.2);border-radius:12px;margin-bottom:8px}
+.path-item-icon{font-size:24px}
+.path-item-info{flex:1}
+.path-item-name{font-weight:600;font-size:0.95rem}
+.path-item-path{font-size:0.8rem;color:var(--text-dim);word-break:break-all}
+.path-item-actions{display:flex;gap:12px;align-items:center}
+.path-delete-btn{padding:6px 12px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:var(--error);cursor:pointer;font-size:0.8rem}
+.path-delete-btn:hover{background:rgba(239,68,68,0.2)}
+.path-add-form{display:flex;flex-direction:column;gap:12px;padding-top:16px;border-top:1px solid var(--glass-border)}
+.path-add-form h4{font-size:1rem;color:var(--text-dim)}
+.path-input-row{display:flex;gap:8px}
+/* Toggle */
+.toggle-switch{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.toggle-switch input{display:none}
+.toggle-slider{position:relative;width:40px;height:22px;background:rgba(255,255,255,0.1);border-radius:11px;transition:all .3s;border:1px solid rgba(255,255,255,0.15)}
+.toggle-slider::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:rgba(255,255,255,0.5);border-radius:50%;transition:all .3s}
+.toggle-switch input:checked+.toggle-slider{background:var(--primary);border-color:var(--primary);box-shadow:0 0 12px rgba(99,102,241,0.4)}
+.toggle-switch input:checked+.toggle-slider::after{transform:translateX(18px);background:#fff}
+.toggle-label{font-size:0.8rem;color:var(--text-dim)}
+.toggle-switch input:checked~.toggle-label{color:var(--primary)}
+/* Batch bar */
+.batch-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 20px;display:flex;align-items:center;gap:16px;z-index:50;transform:translateY(100%);transition:transform .3s;border-radius:0}
+.batch-bar.active{transform:translateY(0)}
+.batch-count{font-size:0.85rem;color:var(--text-dim);cursor:pointer}
+.batch-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* Toast */
+.toast-container{position:fixed;top:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 20px;border-radius:10px;font-size:0.85rem;animation:slideIn .3s ease;max-width:300px}
+.toast-success{background:rgba(34,197,94,0.9);color:#fff}
+.toast-error{background:rgba(239,68,68,0.9);color:#fff}
+.toast-info{background:rgba(99,102,241,0.9);color:#fff}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+/* Checkbox */
+.task-checkbox{width:20px;height:20px;border-radius:6px;border:2px solid var(--glass-border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .3s}
+.task-checkbox.selected{background:var(--primary);border-color:var(--primary)}
+.task-checkbox.selected::after{content:'✓';color:#fff;font-size:12px;font-weight:bold}
+/* Empty state */
+.empty{text-align:center;padding:40px;color:var(--text-dim)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+/* Filter */
+.filter-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+select.input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+@media(max-width:640px){
+  .container{padding:12px}
+  .task-thumb{width:80px;height:45px}
+  .input-row{flex-direction:column}
+  .task-actions{gap:4px}
+  .file-actions{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Login Page -->
+<div id="loginPage">
+  <div class="glass login-card">
+    <h2>🎬 Jable/MissAV 下载器</h2>
+    <div style="margin-bottom:16px">
+      <input class="input" id="loginUser" placeholder="用户名" value="admin">
+    </div>
+    <div style="margin-bottom:20px">
+      <input class="input" id="loginPass" type="password" placeholder="密码">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">登录</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" style="display:none">
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>🎬 Jable/MissAV 下载器</h1>
+        <div class="subtitle">M3U8/HLS 视频下载 · 液态玻璃 UI</div>
+      </div>
+      <div class="header-right">
+        <button class="path-manager-btn" onclick="togglePathModal()" title="管理转存路径">⚙️</button>
+        <button class="btn btn-sm btn-danger" onclick="doLogout()">登出</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('download',this)">⬇️ 下载</div>
+      <div class="tab" onclick="switchTab('files',this)">📁 已下载文件</div>
+    </div>
+
+    <!-- Download Tab -->
+    <div id="downloadTab">
+      <div class="glass input-area" style="padding:20px">
+        <div class="input-row">
+          <input class="input" id="urlInput" placeholder="粘贴 JableTV / MissAV 视频链接..." onkeydown="if(event.key==='Enter')startDownload()">
+          <button class="btn btn-primary" onclick="startDownload()">⬇️ 下载</button>
+        </div>
+        <div class="batch-area">
+          <textarea id="batchInput" placeholder="批量导入 URL，每行一个..."></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-sm btn-primary" onclick="batchDownload()">📥 批量下载</button>
+            <button class="btn btn-sm" style="background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-dim)" onclick="document.getElementById('batchInput').value=''">清空</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <input class="input" id="taskSearch" placeholder="搜索任务..." oninput="debounce(loadTasks,300)()" style="flex:1">
+        <select class="input" id="taskStatus" onchange="loadTasks()" style="width:140px">
+          <option value="">全部状态</option>
+          <option value="queued">排队中</option>
+          <option value="parsing">解析中</option>
+          <option value="downloading">下载中</option>
+          <option value="done">已完成</option>
+          <option value="moved">已转存</option>
+          <option value="error">失败</option>
+        </select>
+      </div>
+
+      <div id="taskList"></div>
+    </div>
+
+    <!-- Files Tab -->
+    <div id="filesTab" style="display:none">
+      <div class="search-bar">
+        <input class="input" id="fileSearch" placeholder="搜索文件..." oninput="debounce(loadFiles,300)()">
+      </div>
+      <div id="fileList"></div>
+    </div>
+  </div>
+
+  <!-- Batch Bar -->
+  <div class="glass batch-bar" id="batchBar">
+    <span class="batch-count" onclick="clearSelection()">已选 <strong id="batchCount">0</strong> 项 ✕</span>
+    <div class="batch-actions" id="batchActions"></div>
+  </div>
+</div>
+
+<!-- Path Modal -->
+<div class="modal-overlay" id="pathModal" onclick="if(event.target===this)togglePathModal()">
+  <div class="glass modal-content">
+    <h3>🗂️ 管理转存路径</h3>
+    <div id="pathList"></div>
+    <div class="path-add-form">
+      <h4>添加新路径</h4>
+      <div class="path-input-row">
+        <input class="input" id="pathName" placeholder="名称 (如: 115网盘)">
+        <input class="input" id="pathValue" placeholder="路径 (如: /Movies/115)">
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="addPath()">添加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = location.origin;
+let TOKEN = localStorage.getItem('token') || '';
+let MOVE_PATHS = [];
+let TASKS = {};
+let SELECTED = new Set();
+let currentTab = 'download';
+
+// ---- Auth ----
+async function authFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(url, opts);
+  if (res.status === 401) { doLogout(); return null; }
+  return res;
+}
+
+async function doLogin() {
+  const user = document.getElementById('loginUser').value;
+  const pass = document.getElementById('loginPass').value;
+  try {
+    const res = await fetch(API + '/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      TOKEN = data.token;
+      localStorage.setItem('token', TOKEN);
+      showApp();
+    } else {
+      showToast('登录失败', 'error');
+    }
+  } catch (e) { showToast('连接失败', 'error'); }
+}
+
+function doLogout() {
+  TOKEN = '';
+  localStorage.removeItem('token');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+async function showApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  await loadMovePaths();
+  loadTasks();
+  setInterval(loadTasks, 10000);
+}
+
+// ---- Tabs ----
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('downloadTab').style.display = tab === 'download' ? 'block' : 'none';
+  document.getElementById('filesTab').style.display = tab === 'files' ? 'block' : 'none';
+  clearSelection();
+  if (tab === 'files') loadFiles();
+  else loadTasks();
+}
+
+// ---- Toast ----
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return function (...args) { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
+// ---- Download ----
+async function startDownload() {
+  const input = document.getElementById('urlInput');
+  const url = input.value.trim();
+  if (!url) return;
+  try {
+    const res = await authFetch(API + '/api/download', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (res && res.ok) {
+      showToast('已加入下载队列', 'success');
+      input.value = '';
+      loadTasks();
+    } else if (res) {
+      const err = await res.json();
+      showToast(err.detail || '下载失败', 'error');
+    }
+  } catch (e) { showToast('请求失败', 'error'); }
+}
+
+async function batchDownload() {
+  const text = document.getElementById('batchInput').value.trim();
+  if (!text) return;
+  const urls = text.split('\n').map(u => u.trim()).filter(Boolean);
+  if (urls.length === 0) return;
+  try {
+    const res = await authFetch(API + '/api/downloads/batch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls })
+    });
+    if (res && res.ok) {
+      const data = await res.json();
+      showToast(`已添加 ${data.created} 个任务`, 'success');
+      document.getElementById('batchInput').value = '';
+      loadTasks();
+    }
+  } catch (e) { showToast('批量下载失败', 'error'); }
+}
+
+// ---- Tasks ----
+async function loadTasks() {
+  try {
+    const params = new URLSearchParams();
+    const q = document.getElementById('taskSearch')?.value?.trim();
+    const status = document.getElementById('taskStatus')?.value;
+    if (q) params.set('q', q);
+    if (status) params.set('status', status);
+    const url = API + '/api/tasks' + (params.toString() ? '?' + params : '');
+    const res = await authFetch(url);
+    if (!res) return;
+    const data = await res.json();
+    renderTasks(data.tasks || []);
+  } catch (e) { console.error('loadTasks failed:', e); }
+}
+
+const STATUS_LABELS = {
+  queued: '⏳ 排队中', parsing: '🔍 解析中', downloading: '⬇️ 下载中',
+  merging: '🔗 合并中', moving: '📦 转存中', done: '✅ 完成',
+  moved: '✓ 已转存', error: '❌ 失败'
+};
+const STATUS_BADGE = {
+  queued: 'badge-status', parsing: 'badge-status', downloading: 'badge-status',
+  merging: 'badge-status', moving: 'badge-status', done: 'badge-done',
+  moved: 'badge-moved', error: 'badge-error'
+};
+
+function renderTasks(tasks) {
+  const container = document.getElementById('taskList');
+  if (!tasks.length) {
+    container.innerHTML = '<div class="empty glass"><div class="empty-icon">📭</div>还没有下载任务</div>';
+    return;
+  }
+  const paths = Array.isArray(MOVE_PATHS) ? MOVE_PATHS : [];
+  container.innerHTML = tasks.map(t => {
+    TASKS[t.task_id] = t;
+    const siteBadge = t.site === 'jable' ? '<span class="badge badge-jable">JableTV</span>'
+      : t.site === 'missav' ? '<span class="badge badge-missav">MissAV</span>' : '';
+    const statusBadge = `<span class="badge ${STATUS_BADGE[t.status] || 'badge-status'}">${STATUS_LABELS[t.status] || t.status}</span>`;
+    const canMove = t.status === 'done' || t.status === 'moved';
+    const isMoved = t.status === 'moved';
+    const isError = t.status === 'error';
+    const isActive = ['queued','parsing','downloading','merging','moving'].includes(t.status);
+    const sel = SELECTED.has(t.task_id) ? 'selected' : '';
+
+    let moveButtons = '';
+    if (canMove && !isMoved && paths.length > 0) {
+      moveButtons = paths.map(p =>
+        `<button class="btn btn-sm" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--success)" onclick="event.stopPropagation();moveTask('${t.task_id}','${p.path}','${(p.name||'').replace(/'/g,"\\'")}')">${p.icon||'📦'} ${p.name}</button>`
+      ).join('');
+    } else if (isMoved) {
+      moveButtons = '<span style="color:var(--success);font-size:0.8rem">✓ 已转存</span>';
+    }
+
+    const retryBtn = isError ? `<button class="btn btn-sm" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--warning)" onclick="event.stopPropagation();retryTask('${t.task_id}')">🔄 重试</button>` : '';
+    const delBtn = `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteTask('${t.task_id}')">🗑</button>`;
+
+    const segments = t.total_segments ? `<span>${t.downloaded_segments}/${t.total_segments} 片段</span>` : '';
+    const size = t.filesize ? `<span>${formatBytes(t.filesize)}</span>` : '';
+
+    return `<div class="glass task-card">
+      <div class="task-top">
+        <div class="task-checkbox ${sel}" onclick="toggleSelect('${t.task_id}')"></div>
+        ${t.thumbnail ? `<img class="task-thumb" src="${t.thumbnail}" onerror="this.style.display='none'" loading="lazy">` : '<div class="task-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>'}
+        <div class="task-info">
+          <div class="task-title" title="${t.title || t.url}">${t.title || t.url || '解析中...'}</div>
+          <div class="task-meta">${siteBadge} ${statusBadge} ${segments} ${size} ${t.speed ? '<span>'+t.speed+'</span>' : ''} ${t.eta ? '<span>剩余 '+t.eta+'</span>' : ''}</div>
+          ${isActive ? `<div class="progress-bar"><div class="progress-fill" style="width:${t.progress||0}%"></div></div><div class="progress-text"><span>${(t.progress||0).toFixed(1)}%</span><span>${t.speed||''}</span></div>` : ''}
+          ${t.error ? `<div style="color:var(--error);font-size:0.8rem;margin-top:4px">${t.error}</div>` : ''}
+          <div class="task-actions">${moveButtons} ${retryBtn} ${delBtn}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function moveTask(taskId, targetPath, targetName) {
+  try {
+    const res = await authFetch(API + '/api/move', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId, target_path: targetPath, target_name: targetName })
+    });
+    if (res && res.ok) { showToast('转存成功', 'success'); loadTasks(); }
+    else if (res) { const e = await res.json(); showToast(e.detail || '转存失败', 'error'); }
+  } catch (e) { showToast('转存失败', 'error'); }
+}
+
+async function deleteTask(taskId) {
+  if (!confirm('确定删除此任务？')) return;
+  try {
+    const res = await authFetch(API + '/api/tasks/' + taskId, { method: 'DELETE' });
+    if (res && res.ok) { showToast('已删除', 'info'); SELECTED.delete(taskId); loadTasks(); }
+  } catch (e) { showToast('删除失败', 'error'); }
+}
+
+async function retryTask(taskId) {
+  try {
+    const res = await authFetch(API + '/api/tasks/' + taskId + '/retry', { method: 'POST' });
+    if (res && res.ok) { showToast('已重新加入队列', 'success'); loadTasks(); }
+  } catch (e) { showToast('重试失败', 'error'); }
+}
+
+// ---- Selection ----
+function toggleSelect(taskId) {
+  if (SELECTED.has(taskId)) SELECTED.delete(taskId); else SELECTED.add(taskId);
+  updateSelection();
+}
+function clearSelection() { SELECTED.clear(); updateSelection(); }
+function updateSelection() {
+  document.querySelectorAll('.task-checkbox').forEach(el => {
+    const card = el.closest('.task-card');
+    const title = card?.querySelector('.task-title')?.textContent;
+    el.classList.toggle('selected', SELECTED.has([...SELECTED].find(id => TASKS[id]?.title === title || card?.innerHTML?.includes(id))));
+  });
+  document.getElementById('batchCount').textContent = SELECTED.size;
+  const bar = document.getElementById('batchBar');
+  bar.classList.toggle('active', SELECTED.size > 0);
+  if (SELECTED.size > 0) renderBatchActions();
+}
+function renderBatchActions() {
+  const paths = Array.isArray(MOVE_PATHS) ? MOVE_PATHS : [];
+  const actions = document.getElementById('batchActions');
+  let html = '';
+  paths.forEach(p => {
+    html += `<button class="btn btn-sm" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--success)" onclick="batchMove('${p.path}','${(p.name||'').replace(/'/g,"\\'")}')">${p.icon||'📦'} ${p.name}</button>`;
+  });
+  html += `<button class="btn btn-sm btn-danger" onclick="batchDelete()">🗑 批量删除</button>`;
+  actions.innerHTML = html;
+}
+
+async function batchMove(targetPath, targetName) {
+  const ids = [...SELECTED];
+  if (!ids.length) return;
+  try {
+    const res = await authFetch(API + '/api/tasks/batch-move', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_ids: ids, target_path: targetPath, target_name: targetName })
+    });
+    if (res && res.ok) { const d = await res.json(); showToast(`转存成功 ${d.success} 个`, 'success'); clearSelection(); loadTasks(); }
+  } catch (e) { showToast('批量转存失败', 'error'); }
+}
+
+async function batchDelete() {
+  const ids = [...SELECTED];
+  if (!ids.length || !confirm(`确定删除 ${ids.length} 个任务？`)) return;
+  try {
+    const res = await authFetch(API + '/api/tasks/batch-delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_ids: ids })
+    });
+    if (res && res.ok) { showToast('批量删除完成', 'info'); clearSelection(); loadTasks(); }
+  } catch (e) { showToast('批量删除失败', 'error'); }
+}
+
+// ---- Files ----
+async function loadFiles() {
+  try {
+    const q = document.getElementById('fileSearch')?.value?.trim() || '';
+    const res = await authFetch(API + '/api/tasks?status=done&status=moved' + (q ? '&q=' + encodeURIComponent(q) : ''));
+    if (!res) return;
+    const data = await res.json();
+    renderFiles(data.tasks || []);
+  } catch (e) { console.error('loadFiles failed:', e); }
+}
+
+function renderFiles(tasks) {
+  const container = document.getElementById('fileList');
+  const files = tasks.filter(t => t.filepath && (t.status === 'done' || t.status === 'moved'));
+  if (!files.length) {
+    container.innerHTML = '<div class="empty glass"><div class="empty-icon">📂</div>还没有已下载的文件</div>';
+    return;
+  }
+  const paths = Array.isArray(MOVE_PATHS) ? MOVE_PATHS : [];
+  container.innerHTML = files.map(t => {
+    const moveBtns = t.status === 'done' && paths.length > 0
+      ? paths.map(p => `<button class="btn btn-sm" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--success)" onclick="moveTask('${t.task_id}','${p.path}','${(p.name||'').replace(/'/g,"\\'")}')">${p.icon||'📦'} ${p.name}</button>`).join('')
+      : t.status === 'moved' ? '<span style="color:var(--success);font-size:0.8rem">✓ 已转存</span>' : '';
+    return `<div class="glass file-card">
+      <div class="file-icon">🎬</div>
+      <div class="file-info">
+        <div class="file-name">${t.title || 'Unknown'}</div>
+        <div class="file-meta">${formatBytes(t.filesize || 0)} · ${t.filepath || ''}</div>
+      </div>
+      <div class="file-actions">${moveBtns} <button class="btn btn-sm btn-danger" onclick="deleteTask('${t.task_id}')">🗑</button></div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Paths ----
+async function loadMovePaths() {
+  try {
+    const res = await authFetch(API + '/api/paths');
+    if (!res) return;
+    const data = await res.json();
+    if (Array.isArray(data)) MOVE_PATHS = data;
+  } catch (e) { console.error('loadMovePaths failed:', e); }
+}
+
+function togglePathModal() {
+  const modal = document.getElementById('pathModal');
+  modal.classList.toggle('active');
+  if (modal.classList.contains('active')) { loadMovePaths().then(renderPathList); }
+}
+
+function renderPathList() {
+  const container = document.getElementById('pathList');
+  if (!MOVE_PATHS.length) {
+    container.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px">暂无路径配置</div>';
+    return;
+  }
+  container.innerHTML = MOVE_PATHS.map(p => `
+    <div class="path-item">
+      <div class="path-item-icon">${p.icon || '📁'}</div>
+      <div class="path-item-info">
+        <div class="path-item-name">${p.name}</div>
+        <div class="path-item-path">${p.path}</div>
+      </div>
+      <div class="path-item-actions">
+        <label class="toggle-switch">
+          <input type="checkbox" ${p.auto_move ? 'checked' : ''} onchange="toggleAutoMove('${p.id}')">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">自动转存</span>
+        </label>
+        <button class="path-delete-btn" onclick="deletePath('${p.id}')">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addPath() {
+  const name = document.getElementById('pathName').value.trim();
+  const path = document.getElementById('pathValue').value.trim();
+  if (!name || !path) { showToast('请填写名称和路径', 'error'); return; }
+  try {
+    const res = await authFetch(API + '/api/paths', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'path_' + Date.now(), name, path, icon: '📁' })
+    });
+    if (res && res.ok) {
+      showToast('路径已添加', 'success');
+      document.getElementById('pathName').value = '';
+      document.getElementById('pathValue').value = '';
+      await loadMovePaths(); renderPathList(); loadTasks();
+    }
+  } catch (e) { showToast('添加失败', 'error'); }
+}
+
+async function deletePath(pathId) {
+  if (!confirm('确定删除此路径？')) return;
+  try {
+    const res = await authFetch(API + '/api/paths/' + pathId, { method: 'DELETE' });
+    if (res && res.ok) { showToast('路径已删除', 'info'); await loadMovePaths(); renderPathList(); loadTasks(); }
+  } catch (e) { showToast('删除失败', 'error'); }
+}
+
+async function toggleAutoMove(pathId) {
+  try {
+    const res = await authFetch(API + '/api/paths/' + pathId + '/auto-move', { method: 'POST' });
+    if (res && res.ok) {
+      const data = await res.json();
+      MOVE_PATHS.forEach(p => { p.auto_move = (p.id === pathId) ? data.auto_move : false; });
+      document.querySelectorAll('.path-item').forEach(item => {
+        const toggle = item.querySelector('.toggle-switch input');
+        if (toggle) {
+          const id = toggle.getAttribute('onchange')?.match(/'([^']+)'/)?.[1];
+          if (id) { const pd = MOVE_PATHS.find(p => p.id === id); toggle.checked = pd ? pd.auto_move : false; }
+        }
+      });
+      showToast(data.auto_move ? '已开启自动转存' : '已关闭自动转存', data.auto_move ? 'success' : 'info');
+    }
+  } catch (e) { showToast('操作失败', 'error'); }
+}
+
+// ---- WebSocket ----
+function connectWS(taskId) {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/${taskId}?token=${TOKEN}`);
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.task_id) { TASKS[data.task_id] = { ...TASKS[data.task_id], ...data }; }
+      if (currentTab === 'download') loadTasks();
+    } catch {}
+  };
+  ws.onclose = () => { /* auto-reconnect handled by polling */ };
+}
+
+// ---- Init ----
+(function init() {
+  if (TOKEN) {
+    authFetch(API + '/api/health').then(res => {
+      if (res && res.ok) showApp();
+      else { TOKEN = ''; localStorage.removeItem('token'); }
+    }).catch(() => { TOKEN = ''; localStorage.removeItem('token'); });
+  }
+  // Enter key on login
+  document.getElementById('loginPass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+})();
+
+// ---- Util ----
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+  return bytes.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+</script>
+</body>
+</html>

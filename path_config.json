@@ -1,0 +1,9 @@
+[
+  {
+    "id": "default",
+    "name": "下载目录",
+    "path": "/root/jable-downloader/downloads",
+    "icon": "📁",
+    "auto_move": false
+  }
+]
