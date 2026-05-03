@@ -76,7 +76,12 @@ def parse_jable(url: str) -> dict:
 
 
 def _unpack_js_eval(script_text: str) -> str:
-    """Decode Dean Edwards p,a,c,k,e,d packer (used by MissAV)."""
+    """Decode Dean Edwards p,a,c,k,e,d packer (used by MissAV).
+    
+    MissAV uses base-16 (hex) digit-to-key mapping:
+    - Tokens like '0','1',...,'9','a','b',...,'f' map to keys[int(token, 16)]
+    - e.g. '8' -> keys[8] = 'https', '7' -> keys[7] = 'surrit'
+    """
     match = re.search(
         r"eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'([^']*)'\s*\.split\('\|'\)",
         script_text, re.DOTALL,
@@ -88,71 +93,38 @@ def _unpack_js_eval(script_text: str) -> str:
     c = int(match.group(3))
     keys = match.group(4).split("|")
 
-    def to_base(n, base):
-        if n == 0:
-            return keys[0]
-        result = []
-        while n:
-            result.append(keys[n % base])
-            n //= base
-        return "".join(reversed(result))
+    def replace_token(m):
+        token = m.group(0)
+        try:
+            idx = int(token, a)
+            if idx < len(keys):
+                return keys[idx]
+        except ValueError:
+            pass
+        return token
 
-    lookup = {to_base(i, a): keys[i] if i < len(keys) else "" for i in range(c)}
-    return re.sub(r'\b(\w+)\b', lambda m: lookup.get(m.group(0), m.group(0)), packed)
+    return re.sub(r'\b[0-9a-fA-F]+\b', replace_token, packed)
 
 
 def parse_missav(url: str) -> dict:
     """Parse MissAV page to extract video info and M3U8 URL."""
-    import cloudscraper
-
-    # Build proper headers for MissAV
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "max-age=0",
-        "Referer": "https://missav.live/",
-        "Origin": "https://missav.live",
-    }
-
-    # Try cloudscraper first
-    scraper = cloudscraper.create_scraper(
-        browser={"browser": "chrome", "platform": "windows", "mobile": False},
-        delay=10,
-    )
-    scraper.headers.update(headers)
+    from curl_cffi import requests as cf_requests
 
     resp = None
     for attempt in range(3):
         try:
-            resp = scraper.get(url, timeout=30)
+            resp = cf_requests.get(
+                url,
+                impersonate="chrome",
+                headers={
+                    "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6",
+                    "Referer": "https://missav.live/",
+                },
+                timeout=30,
+            )
             if resp.status_code == 200:
                 break
-            # If 403, try with different referer
-            if resp.status_code == 403:
-                scraper.headers["Referer"] = "https://www.google.com/"
-                resp = scraper.get(url, timeout=30)
-                if resp.status_code == 200:
-                    break
         except Exception:
-            pass
-
-    # Fallback to plain requests with cookies
-    if not resp or resp.status_code != 200:
-        session = requests.Session()
-        session.headers.update(headers)
-        # Visit homepage first to get cookies
-        try:
-            home = session.get("https://missav.live/", timeout=15)
-            resp = session.get(url, timeout=30)
-        except Exception as e:
             pass
 
     if not resp or resp.status_code != 200:
@@ -181,7 +153,6 @@ def parse_missav(url: str) -> dict:
             break
 
     if not m3u8_url:
-        # Fallback: try direct regex on HTML
         m3u8_match = re.search(r'https?://[^"\'\s]+\.m3u8[^"\'\s]*', html)
         if m3u8_match:
             m3u8_url = m3u8_match.group(0)
@@ -189,7 +160,6 @@ def parse_missav(url: str) -> dict:
     if not m3u8_url:
         raise ValueError("Cannot find M3U8 URL from MissAV page")
 
-    # Extract video ID from URL (missav.live/dm18/cn/xxx or missav.ai/videos/xxx)
     vid_match = re.search(r'(?:videos|cn|en)/([^/]+?)(?:/|$)', url.rstrip("/"))
     video_id = vid_match.group(1) if vid_match else "unknown"
 
